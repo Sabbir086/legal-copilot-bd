@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.8-flash"
     supabase_url: str = ""
     supabase_service_role_key: str = Field(default="", repr=False)
+    max_conversation_attachments: int = 8
+    max_chat_context_chars: int = 90000
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",

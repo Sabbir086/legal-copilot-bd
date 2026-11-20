@@ -1,13 +1,14 @@
-# Target Data Model (M0)
+# Target Data Model (M1)
 
-The current Supabase migration contains an initial document/analysis/legal-source schema. It is not yet connected to the live application. The following is the target logical model for later migrations; it is not a claim that these tables already exist.
+The deployed schema depends on which migrations have been applied. Migration `001_initial_schema.sql` defines the initial document/analysis/legal-source structures; migration `002_conversational_workspace.sql` adds the M1 conversation, message and attachment tables plus a private Storage bucket. The remaining entities below are target logical models for later milestones, not a claim that they already exist.
 
 ## Core entities
 
-- **profiles** — authenticated user profile and preferences (language, default jurisdiction).
-- **conversations** — owner, title, jurisdiction, status, retention policy and timestamps.
-- **messages** — conversation, role, content, model/agent metadata and timestamps.
-- **attachments** — conversation/message association, private object key, MIME type, size, hash, scan status and retention state.
+- **profiles** — authenticated user profile and preferences (language, default jurisdiction); planned for M8.
+- **conversations** — M1 table: device workspace UUID, title, jurisdiction, language and timestamps.
+- **conversation_messages** — M1 table: conversation, role, content, metadata and timestamps.
+- **conversation_attachments** — M1 table: conversation/workspace, private object key, MIME type, size, extraction and classification metadata.
+- **documents / document_pages** — later normalized document entities and page-level extraction.
 - **documents** — normalized representation of an attachment; document type, jurisdiction, parse state and page count.
 - **document_pages** — page number, extracted text, OCR status, extraction confidence and source offsets.
 - **document_facts** — typed facts such as party, date, amount, court, case number, statute reference and evidence locator.

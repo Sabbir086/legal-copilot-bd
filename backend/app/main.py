@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import chat, documents, legal
+from app.api.routes import chat, conversations, documents, legal
 from app.config.settings import settings
 
 app = FastAPI(
-    title="Legal Copilot BD API",
+    title="MyLegal AI API",
     version="0.3.0",
     description=(
         "Bangladesh-focused preliminary document screening API. "
@@ -18,9 +18,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Workspace-ID"],
 )
+app.include_router(conversations.router)
 app.include_router(documents.router)
 app.include_router(chat.router)
 app.include_router(legal.router)
@@ -28,9 +29,9 @@ app.include_router(legal.router)
 
 @app.get("/")
 def root():
-    return {"service": "legal-copilot-bd", "status": "ok", "docs": "/docs"}
+    return {"service": "mylegal-ai", "status": "ok", "docs": "/docs"}
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "legal-copilot-bd", "jurisdiction": "BD"}
+    return {"status": "ok", "service": "mylegal-ai", "jurisdiction": "BD", "workspace_persistence": bool(settings.supabase_url and settings.supabase_service_role_key)}

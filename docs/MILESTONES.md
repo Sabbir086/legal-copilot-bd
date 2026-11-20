@@ -12,15 +12,16 @@ This roadmap is specific to **Legal Copilot / AI Builders Congress**. It is not 
 
 **Exit criteria:** a clean, reproducible source package; no uploaded user documents or secrets in the source archive; compile/syntax and unit checks pass; documented API and security limitations.
 
-## M1 — Unified conversational legal workspace
+## M1 — Unified conversational legal workspace (implementation delivered; Supabase setup pending)
 
 - Chat-first Bengali/English UI.
 - Conversations and persisted message history.
 - General legal chat without requiring an attachment.
-- Attach multiple files/images to a conversation.
+- Attach multiple PDF/DOCX files and PNG/JPG/WEBP images to a conversation.
 - Attachments become conversation context; user can ask questions and receive page/clause citations.
-- Background document analysis status and separate analysis panel.
-- Conversation/session APIs and storage model.
+- Separate Document Analysis panel with synchronous upload/text-extraction status (background job queue and live progress are deferred).
+- Conversation/session APIs and Supabase storage model.
+- M1 uses a device-scoped workspace UUID as a prototype only; authentication and ownership-bound RLS remain M8 release blockers.
 
 **Exit criteria:** users can start a conversation, describe an incident, attach a document, continue asking questions, and reopen a prior conversation without losing context.
 

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Legal Copilot BD | বাংলাদেশের নথি ও আইন সহকারী",
-  description: "বাংলাদেশের আইন, আইনি ঘটনা, মামলা ও নথি বুঝতে প্রমাণভিত্তিক AI সহায়তা।",
+  title: "MyLegal AI | বাংলাদেশের AI Legal Assistant",
+  description: "বাংলাদেশের আইনি প্রশ্ন, নথি ও কথোপকথনের জন্য AI-powered legal assistant।",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
