@@ -4,11 +4,12 @@ from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.config.settings import settings
 from app.services.document_parser import DocumentParseError, extract_text
+from app.services.supabase_client import get_supabase_client
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 
@@ -37,7 +38,7 @@ def _content_to_text(content) -> str:
 
 
 @router.post("/chat/document")
-async def chat_about_document(payload: DocumentChatRequest):
+async def chat_about_document(payload: DocumentChatRequest, request: Request):
     if not settings.openrouter_api_key:
         raise HTTPException(503, "OpenRouter API is not configured on the backend.")
 
@@ -45,6 +46,15 @@ async def chat_about_document(payload: DocumentChatRequest):
         document_id = str(UUID(payload.document_id))
     except ValueError as exc:
         raise HTTPException(400, "Invalid document id.") from exc
+
+    try:
+        owner_rows = get_supabase_client().table("legacy_document_owners").select("document_id").eq(
+            "document_id", document_id
+        ).eq("user_id", str(request.state.user["id"])).limit(1).execute().data or []
+    except Exception as exc:
+        raise HTTPException(503, "Document ownership lookup failed. Check migration 004 and Supabase.") from exc
+    if not owner_rows:
+        raise HTTPException(404, "এই নথিটি আপনার account-এ পাওয়া যায়নি। আবার upload করুন।")
 
     upload_dir = settings.upload_path
     candidates = [upload_dir / f"{document_id}.pdf", upload_dir / f"{document_id}.docx"]

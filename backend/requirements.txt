@@ -11,3 +11,5 @@ supabase>=2.6
 langgraph>=1.0,<2
 langchain-openai>=0.3,<2
 Pillow>=10.4,<13
+
+PyJWT[crypto]>=2.10,<3

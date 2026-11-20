@@ -1,0 +1,22 @@
+raw candidates 561 selected 555 deduped records 555
+base missing []
+suffix count 44
+tiny []
+1 ('Title and extent of operation of the Code', 1, 89, 'This Act shall be called the 2[ Penal Code], and shall take\neffect throughout Bangladesh.')
+2 ('Punishment of offences committed within Bangladesh', 1, 185, 'Every person shall be liable to punishment under this Code and\nnot otherwise for every act or omission contrary to the provisions\nthereof, of which he')
+52A ('“Harbour”', 12, 438, 'Except in section 157, and in section 130 in the case in\nwhich the harbour is given by the wife or husband of the person\nharboured, the word "harbour"')
+110 ('Punishment of abetment if person abetted does act with different intention from that of abettor', 31, 395, 'Whoever abets the commission\nof an offence shall, if the person abetted does the act with a\ndifferent intention or knowledge from that of the abettor,')
+216 ('Harbouring offender who has escaped from custody or whose apprehension has been ordered- if a capital offence; if punishable with imprisonment for life, or with imprisonment', 68, 2164, 'Whenever any person convicted of or charged with an\noffence, being in lawful custody for that offence, escapes from\nsuch custody, Harbouring offender ')
+301 ('Culpable homicide by causing death of person other than person whose death was intended', 93, 421, 'If a person, by doing anything which he intends or knows to\nbe likely to cause death, commits culpable homicide by causing the\ndeath of any person, wh')
+349 ('Force', 104, 930, 'A person is said to use force to another if he causes motion,\nchange of motion, or cessation of motion to that other, or if he\ncauses to any substance')
+371 ('Habitual dealing in slaves', 111, 279, 'Whoever habitually imports, exports, removes, buys, sells,\ntraffics or deals in slaves, shall be punished with 129[\nimprisonment] for life, or with im')
+372 ('Selling minor for purposes of prostitution, etc', 111, 1330, 'Whoever sells, lets to hire, or otherwise disposes of any\nperson under the age of eighteen years with intent that such\nperson shall at any age be empl')
+374 ('Unlawful compulsory labour', 112, 821, '(1) Whoever unlawfully compels any person to labour against\nthe will of that person, shall be punished with imprisonment of\neither description for a t')
+383 ('Extortion', 116, 1251, 'Whoever intentionally puts any person in fear of any injury\nto that person, or to any other, and thereby dishonestly induces\nthe person so put in 133[')
+410 ('Stolen property', 124, 538, 'Property, the possession whereof has been transferred by\ntheft, or by extortion, or by robbery, and property which has been\ncriminally misappropriated')
+441 ('Criminal trespass', 131, 399, 'Whoever enters into or upon property in the possession of\nanother with intent to commit an offence or to intimidate, insult or\nannoy any person in pos')
+463 ('Forgery', 137, 336, 'Whoever makes any false document or part of a document,\nwith intent to cause damage or injury, to the public or to any\nperson, or to support any claim')
+477A ('Falsification of accounts', 143, 1053, 'Whoever, being a clerk, officer or servant, or employed\nor acting in the capacity of a clerk, officer or servant, wilfully, and\nwith intent to defraud')
+478 ('Trade mark', 143, 626, 'A mark used for denoting that goods are the manufacture or\nmerchandise of a particular person is called a trade mark, and for\nthe purposes of this Cod')
+489E ('Making or using documents resembling currency-notes or bank-notes', 146, 1038, 'Whoever makes, or causes to be made, or uses for\nany purpose whatsoever, or delivers to any person, any document\npurporting to be, or in any way resem')
+511 ('Punishment for attempting to commit offences punishable with imprisonment for life or imprisonment', 155, 1120, 'Whoever attempts to commit an offence punishable by this\nCode with 169[ imprisonment for life] or imprisonment, or to cause\nsuch an offence to be comm')

@@ -2,7 +2,7 @@ from pathlib import Path
 from uuid import uuid4
 import re
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,7 @@ from app.graph.workflow import analyze_pages
 from app.services.document_pipeline import process_document_bytes
 from app.services.pdf_generator import generate_report
 from app.services.upload_validation import validate_attachment_upload
+from app.services.supabase_client import get_supabase_client
 
 router = APIRouter(prefix="/api/v1", tags=["documents"])
 ALLOWED = {".pdf", ".docx"}
@@ -22,7 +23,7 @@ class MemorandumRequest(BaseModel):
 
 
 @router.post("/documents/analyze")
-async def upload_and_analyze(file: UploadFile = File(...)):
+async def upload_and_analyze(request: Request, file: UploadFile = File(...)):
     """Legacy M0 endpoint; uses the M2 parser synchronously for compatibility."""
     original_name = Path(file.filename or "uploaded-document").name
     if Path(original_name).suffix.lower() not in ALLOWED:
@@ -61,6 +62,14 @@ async def upload_and_analyze(file: UploadFile = File(...)):
         upload_dir.mkdir(parents=True, exist_ok=True)
         stored = upload_dir / f"{document_id}{Path(filename).suffix.lower()}"
         stored.write_bytes(content)
+        try:
+            get_supabase_client().table("legacy_document_owners").insert({
+                "document_id": document_id,
+                "user_id": str(request.state.user["id"]),
+            }).execute()
+        except Exception as exc:
+            stored.unlink(missing_ok=True)
+            raise HTTPException(503, "Document ownership record could not be saved. Apply migration 004 and check Supabase.") from exc
         return {
             "document_id": document_id,
             "filename": filename,

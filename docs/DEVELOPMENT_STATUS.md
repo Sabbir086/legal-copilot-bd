@@ -73,3 +73,16 @@ FastAPI application startup was not verified because the execution environment d
 ## Completion statement
 
 **M2 is partially complete overall.** The M2 implementation is present in the source archive and the backend compile/unit suite passes. Operational acceptance remains pending because the live migration, Supabase/Storage integration, Render worker deployment, frontend typecheck/build and browser smoke tests could not be executed or verified from this archive-only environment. No M3 implementation was started.
+
+## 20 November 2026 add-on — Penal Code RAG and accounts/admin
+
+The latest work session extends the previously described M2 baseline with:
+
+- `supabase/migrations/004_penal_code_auth_admin.sql`: `profiles`, user/admin/super_admin roles, workspace ownership, searchable Penal Code section table/RPC and chatbot search analytics.
+- `legal_data/penal_code_sections.csv`: 555 extracted records (511 numbered sections and 44 lettered records) from the owner-supplied Penal Code PDF. The full original section text is present. The PDF is a 2013 snapshot; current legal status is not independently verified.
+- `backend/app/services/penal_code_rag.py`: Bangla-digit/section lookup, explicit section retrieval, keyword search and keyword fallback.
+- Chat prompting now injects retrieved statute text before generating incident-to-section / case-statement analysis; the assistant is instructed not to invent a punishment/section and to report source page/snapshot limitations.
+- Supabase email/password Auth pages, automatic `user` role assignment, fixed configured Super Admin bootstrap, admin promotion/demotion endpoint and analytics dashboard.
+- Per-account workspace claim and API bearer-token enforcement.
+
+Validation during this session: `python -m compileall -q backend/app` passed and `python -m pytest -q` passed (35 tests). Frontend `npm ci` timed out; therefore Next.js typecheck/build and browser integration remain unverified. No live Supabase migration, CSV import, hosting environment edit or Super Admin account creation was performed. Follow `docs/PENAL_CODE_RAG_AUTH_ADMIN_SETUP.md` for owner-operated rollout.

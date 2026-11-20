@@ -53,3 +53,29 @@ __pycache__/
 .DS_Store
 *.log
 *.backup
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and build
+node_modules/
+.next/
+out/
+dist/
+build/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local and temporary files
+.DS_Store
+*.log
+*.bak
+*.auth-backup
+*.before-jwks-backup
+.idea/
+.vscode/

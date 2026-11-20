@@ -17,7 +17,10 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_site_url: str = "http://localhost:3000"
     supabase_url: str = ""
+    supabase_publishable_key: str = ""
     supabase_service_role_key: str = Field(default="", repr=False)
+    super_admin_email: str = ""
+    super_admin_password: str = Field(default="", repr=False)
     max_conversation_attachments: int = 8
     max_chat_context_chars: int = 90000
     max_image_pixels: int = 40_000_000

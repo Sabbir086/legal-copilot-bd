@@ -118,3 +118,15 @@ The project is not yet a complete AI Builders Congress solution. M3 authoritativ
 ## Legal disclaimer
 
 Legal Copilot is an AI-assisted information and document-analysis tool, not a law firm or substitute for advice from a qualified lawyer. It cannot guarantee outcomes or determine guilt, liability, ownership or legal validity. Any legal claim must be evaluated against current authoritative law and the complete facts.
+
+## M3 law corpus + authentication/admin add-on
+
+The latest handoff adds a Supabase-searchable Penal Code corpus and account-based access:
+
+- Apply `supabase/migrations/004_penal_code_auth_admin.sql` once after the existing `001`–`003` migrations.
+- Import `legal_data/penal_code_sections.csv` into `public.penal_code_sections` (555 extracted records from the supplied 2013 PDF snapshot).
+- Configure the backend-only `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`, Supabase service key and OpenRouter key; configure only public Supabase Auth values and the API URL in the frontend.
+- New signups get the `user` role; the configured Super Admin can assign or remove the `admin` role in `/admin`.
+- The chatbot uses database retrieval (RAG), not model fine-tuning. It grounds candidate Penal Code sections in the imported text and flags the 2013 source snapshot for current-law verification.
+
+See `docs/PENAL_CODE_RAG_AUTH_ADMIN_SETUP.md` for migration, CSV import, Auth setup, rollout and verification steps. Do not treat the supplied historical PDF as proof of current law.

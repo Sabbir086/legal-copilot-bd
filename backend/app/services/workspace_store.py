@@ -19,7 +19,7 @@ def _rows(response) -> list[dict[str, Any]]:
     return list(response.data or [])
 
 
-def create_conversation(workspace_id: UUID, title: str, language: str = "auto") -> dict:
+def create_conversation(workspace_id: UUID, title: str, language: str = "auto", owner_id: str | None = None) -> dict:
     data = {
         "workspace_id": str(workspace_id),
         "title": title[:120] or "নতুন আইনি আলোচনা",
@@ -33,7 +33,7 @@ def create_conversation(workspace_id: UUID, title: str, language: str = "auto") 
     return rows[0]
 
 
-def list_conversations(workspace_id: UUID, limit: int = 50) -> list[dict]:
+def list_conversations(workspace_id: UUID, limit: int = 50, owner_id: str | None = None) -> list[dict]:
     result = (
         _client().table("conversations")
         .select("id,title,jurisdiction,language,created_at,updated_at")
@@ -46,7 +46,7 @@ def list_conversations(workspace_id: UUID, limit: int = 50) -> list[dict]:
     return _rows(result)
 
 
-def get_conversation(workspace_id: UUID, conversation_id: UUID) -> dict | None:
+def get_conversation(workspace_id: UUID, conversation_id: UUID, owner_id: str | None = None) -> dict | None:
     result = (
         _client().table("conversations")
         .select("*")

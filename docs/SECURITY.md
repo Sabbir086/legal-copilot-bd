@@ -58,3 +58,9 @@ M8 is a release blocker: implement Supabase Auth, derive ownership from verified
 ## Before public/production use
 
 Supabase Auth, user-bound RLS, retention/deletion controls, malware-safe processing, worker isolation/quotas, rate limiting, CORS review, audit trails, monitoring, incident response, legal-source verification and independent security testing remain release blockers.
+
+## Authentication/admin add-on (20 November 2026)
+
+The latest source now includes Supabase email/password Auth, server-verified bearer-token middleware, `profiles` role checks, immutable `super_admin` role handling, and first-claim workspace ownership in `workspace_owners`. M2 conversation and document endpoints require a verified user and a workspace UUID already bound to that user. Admin analytics and role changes use server-side service credentials; only Super Admin can assign/demote `admin` roles.
+
+This is a first implementation, not a production security certification. Session tokens currently live in browser local storage; use secure HttpOnly cookies/CSRF protection for a hardened production release. Add rate limiting, abuse monitoring, audit logging, privacy/retention controls and independent penetration testing before public launch. Search-event rows include user-submitted query text, so Admin visibility must be described in a privacy notice and governed by retention rules.
