@@ -14,6 +14,36 @@ from app.services.supabase_client import get_supabase_client
 logger = logging.getLogger(__name__)
 
 
+def _profile_database_error_detail(exc: Exception) -> str:
+    """Return a safe, actionable hint without exposing database internals."""
+    code = str(getattr(exc, "code", "") or "")
+    message = str(getattr(exc, "message", "") or exc).lower()
+
+    if code in {"42P01", "PGRST205"} or ("profiles" in message and "does not exist" in message):
+        return (
+            "Supabase public.profiles table পাওয়া যায়নি। সঠিক Supabase project-এর SQL Editor-এ "
+            "supabase/migrations/005_auth_profile_repair.sql চালান।"
+        )
+
+    if code == "42501" or "permission denied" in message or "row-level security" in message:
+        return (
+            "Supabase Database permission denied। Render-এর SUPABASE_SERVICE_ROLE_KEY-এ "
+            "server-side sb_secret_ key অথবা legacy service_role key দিন; anon/publishable key নয়।"
+        )
+
+    if code in {"42703", "PGRST204"} or ("column" in message and "does not exist" in message):
+        return (
+            "Supabase public.profiles table-এর প্রয়োজনীয় column অনুপস্থিত। "
+            "সঠিক project-এর SQL Editor-এ supabase/migrations/005_auth_profile_repair.sql চালান।"
+        )
+
+    return (
+        "Supabase profile database access ব্যর্থ হয়েছে। Render-এর SUPABASE_URL এবং "
+        "SUPABASE_SERVICE_ROLE_KEY একই Supabase project-এর কি না এবং key-টি server-side "
+        "service-role/secret key কি না যাচাই করুন। বিস্তারিত Render backend logs-এ আছে।"
+    )
+
+
 def _get_supabase_identity(token: str) -> dict:
     """Ask Supabase Auth to validate the actual access token."""
     api_key = (
@@ -111,15 +141,21 @@ def authenticate_access_token(token: str) -> dict:
         rows = result.data or []
 
         if not rows:
+            profile_insert_error = None
             try:
                 client.table("profiles").insert({
                     "id": user_id,
                     "email": email,
                     "role": "user",
                 }).execute()
-            except Exception:
-                # Another signup process may have created the profile.
-                logger.info("Profile insert skipped; checking for existing row.")
+            except Exception as exc:
+                # A concurrent signup may have inserted the same profile.
+                # Keep the exception so a real permission/schema failure is not hidden.
+                profile_insert_error = exc
+                logger.warning(
+                    "Profile auto-provisioning failed; checking whether another request created it.",
+                    exc_info=True,
+                )
 
             result = (
                 client.table("profiles")
@@ -130,10 +166,19 @@ def authenticate_access_token(token: str) -> dict:
             )
             rows = result.data or []
 
+            if not rows and profile_insert_error:
+                raise HTTPException(
+                    status_code=503,
+                    detail=_profile_database_error_detail(profile_insert_error),
+                ) from profile_insert_error
+
         if not rows:
             raise HTTPException(
                 status_code=503,
-                detail="User profile missing. Check Supabase profiles table."
+                detail=(
+                    "Supabase Auth account আছে, কিন্তু public.profiles-এ profile পাওয়া যায়নি। "
+                    "সঠিক project-এ migration 005 প্রয়োগ করুন এবং Auth user backfill হয়েছে কি না যাচাই করুন।"
+                ),
             )
 
         profile = rows[0]
@@ -167,7 +212,7 @@ def authenticate_access_token(token: str) -> dict:
         logger.exception("Supabase profile database lookup failed")
         raise HTTPException(
             status_code=503,
-            detail="User profile database service is unavailable."
+            detail=_profile_database_error_detail(exc),
         ) from exc
 
 
