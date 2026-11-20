@@ -57,11 +57,46 @@ def _ensure_configured():
         raise HTTPException(503, "Workspace database is unavailable. Check Supabase configuration and migration status.") from exc
 
 
+def _workspace_database_error_detail(exc: Exception, operation: str) -> str:
+    """Translate common PostgREST/Postgres failures into safe repair guidance."""
+    code = str(getattr(exc, "code", "") or "").strip()
+    message = str(exc).lower()
+
+    if code in {"42703", "PGRST204"} or ("column" in message and "does not exist" in message):
+        return (
+            f"{operation} ব্যর্থ হয়েছে: conversation table-এর schema পুরোনো বা অসম্পূর্ণ। "
+            "Supabase SQL Editor-এ migration 006 চালান।"
+        )
+
+    if code in {"42P01", "PGRST205"} or "does not exist" in message or "could not find the table" in message:
+        return (
+            f"{operation} ব্যর্থ হয়েছে: Supabase-এর conversation table পাওয়া যায়নি। "
+            "সঠিক project-এর SQL Editor-এ supabase/migrations/006_workspace_repair.sql চালান।"
+        )
+
+    if code in {"42501", "PGRST301"} or "permission denied" in message or "row-level security" in message:
+        return (
+            f"{operation} ব্যর্থ হয়েছে: Supabase permission denied। Render-এর "
+            "SUPABASE_SERVICE_ROLE_KEY সঠিক project-এর server-side secret/service_role key কি না "
+            "যাচাই করুন এবং migration 006 চালান।"
+        )
+
+    reference = f" (database code: {code})" if code else f" ({type(exc).__name__})"
+    return (
+        f"{operation} সম্পন্ন হয়নি। Render Backend logs-এ মূল database error দেখুন এবং "
+        f"SUPABASE_URL ও SUPABASE_SERVICE_ROLE_KEY একই Supabase project-এর কি না যাচাই করুন{reference}."
+    )
+
+
 def _ensure_owned(workspace_id: UUID, conversation_id: UUID, owner_id: str) -> dict:
     try:
         conversation = store.get_conversation(workspace_id, conversation_id, owner_id=owner_id)
     except Exception as exc:
-        raise HTTPException(503, "Supabase database schema/configuration পরীক্ষা করুন।") from exc
+        logger.exception("Conversation ownership lookup failed (workspace_id=%s)", workspace_id)
+        raise HTTPException(
+            503,
+            _workspace_database_error_detail(exc, "Conversation যাচাই"),
+        ) from exc
     if not conversation:
         raise HTTPException(404, "এই conversation-টি পাওয়া যায়নি।")
     return conversation
@@ -76,11 +111,24 @@ def create_conversation(
     workspace_id = _workspace_id(x_workspace_id)
     _ensure_configured()
     try:
-        return store.create_conversation(workspace_id, payload.title, payload.language, owner_id=str(request.state.user["id"]))
+        return store.create_conversation(
+            workspace_id,
+            payload.title,
+            payload.language,
+            owner_id=str(request.state.user["id"]),
+        )
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(503, "Conversation তৈরি করা যায়নি। Supabase migration ও permissions পরীক্ষা করুন.") from exc
+        logger.exception(
+            "Conversation creation failed (workspace_id=%s, user_id=%s)",
+            workspace_id,
+            request.state.user.get("id"),
+        )
+        raise HTTPException(
+            503,
+            _workspace_database_error_detail(exc, "নতুন conversation তৈরি"),
+        ) from exc
 
 
 @router.get("/conversations")
@@ -93,7 +141,11 @@ def get_conversations(
     try:
         return {"conversations": store.list_conversations(workspace_id, owner_id=str(request.state.user["id"]))}
     except Exception as exc:
-        raise HTTPException(503, "Conversation history লোড করা যায়নি।") from exc
+        logger.exception("Conversation history query failed (workspace_id=%s)", workspace_id)
+        raise HTTPException(
+            503,
+            _workspace_database_error_detail(exc, "Conversation history লোড"),
+        ) from exc
 
 
 @router.get("/conversations/{conversation_id}")
