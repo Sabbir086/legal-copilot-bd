@@ -170,3 +170,85 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
   .attachment-card { align-items: flex-start; }
   .parse-pill { margin-left: 55px; }
 }
+
+/* M2 document analysis evidence details */
+.analysis-summary {
+  margin: 10px 0 8px;
+  color: var(--muted-foreground, #667085);
+  line-height: 1.55;
+  font-size: 0.9rem;
+}
+.document-facts {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.document-facts > strong {
+  font-size: 0.82rem;
+  color: var(--foreground, #1f2937);
+}
+.document-fact {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--card, #fff) 94%, #dbeafe);
+  font-size: 0.82rem;
+}
+.document-fact q {
+  color: var(--muted-foreground, #667085);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.document-fact small,
+.document-warning {
+  color: #8a5a18;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.document-retry {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.document-retry:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.document-sections {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.document-sections > strong {
+  color: var(--foreground, #1f2937);
+  font-size: 0.82rem;
+}
+.document-section {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border-left: 3px solid #8aa6d8;
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--card, #fff) 95%, #dbeafe);
+}
+.document-section b {
+  color: var(--foreground, #344054);
+  font-size: 0.78rem;
+}
+.document-section small {
+  color: var(--muted-foreground, #667085);
+  font-size: 0.7rem;
+}
+.document-section p {
+  margin: 0;
+  color: var(--muted-foreground, #667085);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

@@ -1,4 +1,4 @@
-"""Gemini-assisted document risk screening with a transparent regex fallback.
+"""OpenRouter-assisted document risk screening with a transparent regex fallback.
 
 This module validates each AI-proposed excerpt against extracted page text. It
 never treats an AI-generated statutory citation as verified legal authority.
@@ -10,7 +10,7 @@ import unicodedata
 from typing import Literal
 
 from pydantic import BaseModel, Field
-from langchain_google_genai import ChatGoogleGenerativeAI
+from app.services.llm_client import get_chat_model
 
 from app.config.settings import settings
 from app.schemas.legal import RiskFinding
@@ -61,7 +61,7 @@ def normalize_evidence(text: str) -> str:
 
 
 def detect_risks(pages: list[dict]) -> list[RiskFinding]:
-    """Return heuristic signals for use only when Gemini is unavailable."""
+    """Return heuristic signals for use only when OpenRouter is unavailable."""
     findings: list[RiskFinding] = []
     seen: set[tuple[str, int]] = set()
     for page in pages:
@@ -131,7 +131,7 @@ def verify_document_evidence(
 
 
 def _page_chunks(pages: list[dict], max_chars: int = 28000, max_pages: int = 8):
-    """Bound each Gemini request; very long pages are split with overlap."""
+    """Bound each OpenRouter request; very long pages are split with overlap."""
     current: list[dict] = []
     current_size = 0
 
@@ -159,13 +159,8 @@ def _page_chunks(pages: list[dict], max_chars: int = 28000, max_pages: int = 8):
         yield current
 
 
-async def _gemini_candidates(pages: list[dict]) -> list[RiskFinding]:
-    model = ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        api_key=settings.gemini_api_key,
-        max_retries=2,
-        timeout=90,
-    )
+async def _openrouter_candidates(pages: list[dict]) -> list[RiskFinding]:
+    model = get_chat_model(max_retries=2, timeout=90)
     structured_model = model.with_structured_output(RiskBatch, method="json_schema")
     all_findings: list[RiskFinding] = []
 
@@ -221,24 +216,24 @@ SOURCE DOCUMENT:
     return all_findings
 
 
-async def detect_with_gemini_or_fallback(
+async def detect_with_openrouter_or_fallback(
     pages: list[dict],
 ) -> tuple[list[RiskFinding], str, str | None]:
-    if not settings.gemini_api_key:
+    if not settings.openrouter_api_key:
         return (
             detect_risks(pages),
             "heuristic_fallback",
-            "Gemini API key is missing. Limited rule-based screening was used.",
+            "OpenRouter API key is missing. Limited rule-based screening was used.",
         )
 
     try:
-        candidates = await _gemini_candidates(pages)
+        candidates = await _openrouter_candidates(pages)
         supported = verify_document_evidence(candidates, pages)
-        return supported, "gemini", None
+        return supported, "openrouter", None
     except Exception as exc:
-        logger.exception("Gemini document risk analysis failed")
+        logger.exception("OpenRouter document risk analysis failed")
         return (
             detect_risks(pages),
             "heuristic_fallback",
-            f"Gemini analysis failed ({type(exc).__name__}). Limited rule-based screening was used; check backend logs.",
+            f"OpenRouter analysis failed ({type(exc).__name__}). Limited rule-based screening was used; check backend logs.",
         )

@@ -38,3 +38,18 @@ backend/reports/*
 
 # Local project backups
 project_backup.zip
+
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Dependencies and build files
+node_modules/
+.venv/
+.next/
+__pycache__/
+*.py[cod]
+.DS_Store
+*.log
+*.backup

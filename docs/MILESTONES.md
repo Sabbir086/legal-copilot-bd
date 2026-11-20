@@ -1,6 +1,6 @@
 # Legal Copilot — Milestone Roadmap
 
-This roadmap is specific to **Legal Copilot / AI Builders Congress**. It is not the LDIS / LandTech roadmap.
+This roadmap is specific to **MyLegal AI / Legal Copilot BD**. It is not the LDIS / LandTech roadmap.
 
 ## M0 — Scope lock and repository foundation
 
@@ -17,24 +17,27 @@ This roadmap is specific to **Legal Copilot / AI Builders Congress**. It is not 
 - Chat-first Bengali/English UI.
 - Conversations and persisted message history.
 - General legal chat without requiring an attachment.
-- Attach multiple PDF/DOCX files and PNG/JPG/WEBP images to a conversation.
+- Attach multiple PDF/DOCX/images to a conversation.
 - Attachments become conversation context; user can ask questions and receive page/clause citations.
-- Separate Document Analysis panel with synchronous upload/text-extraction status (background job queue and live progress are deferred).
-- Conversation/session APIs and Supabase storage model.
+- Separate AI Chat and Document Analysis views.
+- Conversation/session APIs and private Supabase Storage model.
 - M1 uses a device-scoped workspace UUID as a prototype only; authentication and ownership-bound RLS remain M8 release blockers.
 
-**Exit criteria:** users can start a conversation, describe an incident, attach a document, continue asking questions, and reopen a prior conversation without losing context.
+## M2 — Document intelligence and multimodal ingestion (code implemented; external rollout pending)
 
-## M2 — Document intelligence and multimodal ingestion
+- Signature-checked PDF/DOCX/PNG/JPG/JPEG/WEBP ingestion with byte, image-pixel, archive-expansion and PDF-page limits.
+- Selectable PDF text extraction page by page; scanned/low-text page detection and Tesseract OCR abstraction for `ben` + `eng`.
+- DOCX paragraph/table extraction in document order with block anchors; no synthetic page claims.
+- Image OCR with dimensions, engine, languages, confidence and image locator; image vision analysis kept separate and marked not requested.
+- Explainable document classification for contracts, court filings, orders/judgments, notices, statutes, correspondence, identity/supporting evidence and other/unknown.
+- Structured candidate extraction for parties/roles, dates, amounts, court/case/district/procedural stage, literal statute/section text, clauses, claims and evidence references. Exact quotes are checked against source blocks before persistence.
+- Bounded page/heading/clause-aware segments with stable source locators and explicit overlap metadata; no embeddings are created in M2.
+- Durable Supabase-backed processing jobs, an idempotent worker, processing-state APIs, retry and a bilingual Document Analysis view.
+- M1 conversation attachments and legacy endpoints remain in place.
 
-- Secure PDF/DOCX/image ingestion.
-- Text extraction, OCR for scanned documents and image/PDF page processing.
-- Long-document page/section segmentation and contextual indexing.
-- Classification for contract, court filing/order, notice, statute, correspondence and other document types.
-- Structured extraction of parties, dates, amounts, provisions, claims, evidence, court and procedural posture.
-- Document summary and extraction confidence/provenance.
+**Code-level validation:** 34 backend unit tests pass in the supplied local environment. Frontend typecheck/build and live Supabase/Render/Vercel rollout are not verified in this archive-only environment. Apply `003_document_intelligence.sql` only after checking the existing database migration history.
 
-**Exit criteria:** extracted facts retain page/section anchors and uncertain fields are flagged rather than silently guessed.
+**Operational exit criteria still pending:** apply M2 migration to the intended Supabase project; deploy and run the Render worker with Tesseract Bangla/English language data; configure the API and worker; verify upload → queued → processing → OCR/partial/completed → evidence retrieval against a non-production Supabase environment; run frontend install/typecheck/build and browser smoke tests.
 
 ## M3 — Bangladesh legal corpus and Agentic RAG
 

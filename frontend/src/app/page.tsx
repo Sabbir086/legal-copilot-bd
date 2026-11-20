@@ -32,7 +32,45 @@ type Attachment = {
   page_count: number;
   extracted_characters: number;
   parse_status: "uploaded" | "ready" | "failed";
+  document_id?: string;
   created_at: string;
+};
+type DocumentAnalysis = {
+  document_id: string;
+  filename: string;
+  status: "queued" | "processing" | "partial" | "completed" | "failed" | "needs_ocr" | "ocr_unavailable";
+  document_type?: string | null;
+  classification_confidence?: number | null;
+  summary?: string | null;
+  page_count?: number;
+  block_count?: number;
+  extracted_characters?: number;
+  segments?: Array<{
+    segment_index: number;
+    heading?: string | null;
+    clause_number?: string | null;
+    content?: string;
+    text?: string;
+    start_locator?: Record<string, string | number | null>;
+    end_locator?: Record<string, string | number | null>;
+    has_overlap?: boolean;
+  }>;
+  sections_error?: string | null;
+  facts?: Array<{
+    id?: string;
+    field: string;
+    value?: string | null;
+    supporting_quote?: string | null;
+    confidence: number;
+    needs_review: boolean;
+    uncertainty_reason?: string | null;
+    evidence_locator?: Record<string, string | number | null>;
+    extraction_method?: string;
+  }>;
+  uncertainty_notes?: string[];
+  prompt_injection?: { detected?: boolean; signals?: string[] };
+  last_error_message?: string | null;
+  analysis_error?: string | null;
 };
 
 type ApiError = { detail?: string };
@@ -62,6 +100,8 @@ export default function Home() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [documentAnalyses, setDocumentAnalyses] = useState<Record<string, DocumentAnalysis>>({});
+  const [retryingDocumentId, setRetryingDocumentId] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [draft, setDraft] = useState("");
   const [view, setView] = useState<"chat" | "documents">("chat");
@@ -88,6 +128,59 @@ export default function Home() {
     if (!response.ok) throw new Error(errorMessage(payload as ApiError, `Request failed (${response.status})`));
     return payload;
   }, [workspaceId]);
+
+  useEffect(() => {
+    if (view !== "documents" || attachments.length === 0 || !workspaceId) return;
+    let cancelled = false;
+    const refreshAnalyses = async () => {
+      const results = await Promise.all(attachments.map(async (file) => {
+        try {
+          const documentId = file.document_id || file.id;
+          const payload = await apiFetch(`/api/v1/documents/${documentId}/analysis`) as DocumentAnalysis;
+          let segments: DocumentAnalysis["segments"] = [];
+          let sectionsError: string | null = null;
+          try {
+            const segmentPayload = await apiFetch(`/api/v1/documents/${documentId}/segments?limit=8&offset=0`);
+            segments = (segmentPayload.items || []) as DocumentAnalysis["segments"];
+          } catch (error) {
+            sectionsError = error instanceof Error ? error.message : "Extracted sections could not be loaded.";
+          }
+          return [documentId, { ...payload, segments, sections_error: sectionsError }] as const;
+        } catch (error) {
+          return [file.document_id || file.id, {
+            document_id: file.document_id || file.id, status: "queued",
+            analysis_error: error instanceof Error ? error.message : "Document analysis could not be loaded.",
+          } as DocumentAnalysis] as const;
+        }
+      }));
+      if (!cancelled) {
+        setDocumentAnalyses((current) => {
+          const next = { ...current };
+          for (const item of results) if (item) next[item[0]] = item[1];
+          return next;
+        });
+      }
+    };
+    void refreshAnalyses();
+    const timer = window.setInterval(() => { void refreshAnalyses(); }, 5000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [view, attachments, workspaceId, apiFetch]);
+
+  async function retryDocument(documentId: string) {
+    setRetryingDocumentId(documentId);
+    try {
+      await apiFetch(`/api/v1/documents/${documentId}/retry`, { method: "POST" });
+      setNotice("নথি পুনরায় বিশ্লেষণের জন্য queue করা হয়েছে। / Document retry queued.");
+      setDocumentAnalyses((current) => ({
+        ...current,
+        [documentId]: { ...current[documentId], document_id: documentId, status: "queued" },
+      }));
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Retry করা যায়নি।");
+    } finally {
+      setRetryingDocumentId(null);
+    }
+  }
 
   const refreshConversations = useCallback(async () => {
     const payload = await apiFetch("/api/v1/conversations");
@@ -356,19 +449,67 @@ export default function Home() {
 
         {view === "documents" ? (
           <div className="documents-view">
-            <div className="documents-intro"><span className="documents-icon"><FileText size={23} /></span><div><h2>Document Analysis Workspace</h2><p>এই conversation-এ যুক্ত নথি ও text extraction-এর অবস্থা দেখুন।</p></div></div>
+            <div className="documents-intro"><span className="documents-icon"><FileText size={23} /></span><div><h2>Document Analysis Workspace</h2><p>Processing, OCR, detected type, evidence-linked facts ও uncertainty দেখুন। / Review extracted evidence and processing status.</p></div></div>
             {attachments.length === 0 ? (
               <div className="empty-documents"><UploadCloud size={34} /><strong>এখনো কোনো নথি যুক্ত হয়নি</strong><p>AI Chat-এ ফিরে paperclip বাটন দিয়ে PDF বা DOCX যুক্ত করুন।</p><button type="button" onClick={() => setView("chat")}>AI Chat-এ ফিরে যান</button></div>
             ) : (
               <div className="attachment-cards">
-                {attachments.map((file) => <article className="attachment-card" key={file.id}>
-                  <div className="file-icon"><FileText size={22} /></div>
-                  <div className="attachment-info"><strong>{file.filename}</strong><p>{file.document_type_bn} · {formatBytes(file.size_bytes)}</p><small>{file.mime_type.startsWith("image/") ? "Gemini visual context ready · OCR text is not persisted" : `${file.page_count.toLocaleString("bn-BD")} page · ${file.extracted_characters.toLocaleString("bn-BD")} characters extracted`}</small></div>
-                  <span className={`parse-pill ${file.parse_status === "ready" ? "ready" : "pending"}`}>{file.parse_status === "ready" ? <><Check size={13} /> Context ready</> : "Processing"}</span>
-                </article>)}
+                {attachments.map((file) => {
+                  const analysis = documentAnalyses[file.document_id || file.id];
+                  const status = analysis?.status || "queued";
+                  const statusLabel: Record<string, string> = {
+                    queued: "Queue-তে আছে / Queued", processing: "বিশ্লেষণ চলছে / Processing",
+                    partial: "আংশিক সম্পন্ন / Partial", completed: "সম্পন্ন / Completed",
+                    failed: "ব্যর্থ / Failed", needs_ocr: "OCR প্রয়োজন / Needs OCR",
+                    ocr_unavailable: "OCR পাওয়া যায়নি / OCR unavailable",
+                  };
+                  const canRetry = ["partial", "failed", "needs_ocr", "ocr_unavailable"].includes(status);
+                  return <article className="attachment-card" key={file.id}>
+                    <div className="file-icon"><FileText size={22} /></div>
+                    <div className="attachment-info">
+                      <strong>{file.filename}</strong>
+                      <p>{analysis?.document_type || file.document_type_bn} · {formatBytes(file.size_bytes)}</p>
+                      <small>{analysis ? `${(analysis.page_count || 0).toLocaleString("bn-BD")} page · ${(analysis.block_count || 0).toLocaleString("bn-BD")} source block · ${(analysis.extracted_characters || 0).toLocaleString("bn-BD")} characters` : "Analysis state loading… / বিশ্লেষণের অবস্থা লোড হচ্ছে"}</small>
+                      {analysis?.classification_confidence != null && <small>Classification confidence: {Math.round(analysis.classification_confidence * 100)}%</small>}
+                      {analysis?.summary && <><small>Source-text extractive preview / উৎস-পাঠ থেকে সংক্ষিপ্ত preview (AI legal summary নয়)</small><p className="analysis-summary">{analysis.summary}</p></>}
+                      {analysis?.analysis_error && <small className="document-warning">Analysis could not be loaded / বিশ্লেষণ লোড করা যায়নি: {analysis.analysis_error}</small>}
+                      {analysis?.segments && analysis.segments.length > 0 && <div className="document-sections">
+                        <strong>Extracted sections / নথির অংশ</strong>
+                        {analysis.segments.map((segment) => {
+                          const locator = segment.start_locator || {};
+                          const anchor = locator.page_number != null ? `Page ${locator.page_number}` : [locator.kind, locator.paragraph_index != null ? `Paragraph ${locator.paragraph_index}` : null, locator.table_index != null ? `Table ${locator.table_index}` : null].filter(Boolean).join(" · ");
+                          return <div className="document-section" key={segment.segment_index}>
+                            <b>{segment.heading || (segment.clause_number ? `Clause ${segment.clause_number}` : `Section ${segment.segment_index}`)}</b>
+                            <small>{anchor || "Source block"}{segment.has_overlap ? " · Context overlap" : ""}</small>
+                            <p>{(segment.text || segment.content || "").slice(0, 360)}{(segment.text || segment.content || "").length > 360 ? "…" : ""}</p>
+                          </div>;
+                        })}
+                        {analysis.sections_error && <small className="document-warning">Section list could not be loaded: {analysis.sections_error}</small>}
+                      </div>}
+                      {analysis?.facts && analysis.facts.length > 0 && <div className="document-facts">
+                        <strong>Evidence-linked findings / উৎস-সংযুক্ত তথ্য</strong>
+                        {analysis.facts.slice(0, 12).map((fact, index) => {
+                          const locator = fact.evidence_locator || {};
+                          const anchor = locator.page_number != null ? `Page ${locator.page_number}` : [locator.kind, locator.paragraph_index != null ? `Paragraph ${locator.paragraph_index}` : null, locator.table_index != null ? `Table ${locator.table_index}, row ${locator.row_index}` : null].filter(Boolean).join(" · ");
+                          return <div className="document-fact" key={`${fact.field}-${index}`}>
+                            <span><b>{fact.field.replace(/_/g, " ")}</b>{fact.value ? `: ${fact.value}` : ": Unknown"} · {Math.round(fact.confidence * 100)}%</span>
+                            {fact.supporting_quote && <q>{fact.supporting_quote}</q>}
+                            <small>{anchor || "Source locator pending"} · {fact.extraction_method === "ocr_rule_based" ? "OCR text" : "Selectable/source text"}{fact.needs_review ? " · Review required" : ""}</small>
+                          </div>;
+                        })}
+                      </div>}
+                      {analysis && ["completed", "partial", "needs_ocr", "ocr_unavailable"].includes(analysis.status) && (!analysis.facts || analysis.facts.length === 0) && <small>No supported candidate facts were found yet / প্রমাণ-সমর্থিত candidate তথ্য পাওয়া যায়নি।</small>}
+                      {analysis?.uncertainty_notes?.map((note, index) => <small className="document-warning" key={index}>{note}</small>)}
+                      {analysis?.prompt_injection?.detected && <small className="document-warning">Prompt-like instructions were detected and treated as untrusted document content.</small>}
+                      {analysis?.last_error_message && <small className="document-warning">{analysis.last_error_message}</small>}
+                      {canRetry && <button className="document-retry" type="button" onClick={() => void retryDocument(file.document_id || file.id)} disabled={retryingDocumentId === (file.document_id || file.id)}>{retryingDocumentId === (file.document_id || file.id) ? "Retrying…" : "Retry processing / আবার চেষ্টা"}</button>}
+                    </div>
+                    <span className={`parse-pill ${status === "completed" ? "ready" : ["failed", "partial", "needs_ocr", "ocr_unavailable"].includes(status) ? "pending" : "pending"}`}>{statusLabel[status] || status}</span>
+                  </article>;
+                })}
               </div>
             )}
-            <div className="analysis-next-step"><AlertCircle size={17} /><p><strong>এই milestone-এর সীমা:</strong> এখানে file text extraction ও conversation context চালু আছে। OCR, পূর্ণ document summary, clause-by-clause risk detection এবং verified legal citation পরবর্তী milestone-এ যুক্ত হবে।</p></div>
+            <div className="analysis-next-step"><AlertCircle size={17} /><p><strong>Evidence note:</strong> Extracted facts are candidates linked to source quotes and locators, not verified facts or legal conclusions. OCR text is stored separately from selectable source text; model/visual descriptions are not treated as OCR evidence.</p></div>
           </div>
         ) : (
           <>

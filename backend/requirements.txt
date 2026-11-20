@@ -9,4 +9,5 @@ python-docx>=1.1
 reportlab>=4.2
 supabase>=2.6
 langgraph>=1.0,<2
-langchain-google-genai>=4.0,<5
+langchain-openai>=0.3,<2
+Pillow>=10.4,<13

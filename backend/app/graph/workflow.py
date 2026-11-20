@@ -9,7 +9,7 @@ from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from app.agents.risk_agent import detect_with_gemini_or_fallback, verify_document_evidence
+from app.agents.risk_agent import detect_with_openrouter_or_fallback, verify_document_evidence
 from app.schemas.legal import RiskFinding
 
 
@@ -21,7 +21,7 @@ class AnalysisState(TypedDict):
 
 
 async def detect_node(state: AnalysisState) -> dict:
-    findings, method, notice = await detect_with_gemini_or_fallback(state["pages"])
+    findings, method, notice = await detect_with_openrouter_or_fallback(state["pages"])
     return {
         "findings": findings,
         "analysis_method": method,

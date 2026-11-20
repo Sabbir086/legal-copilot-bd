@@ -38,8 +38,8 @@ def _content_to_text(content) -> str:
 
 @router.post("/chat/document")
 async def chat_about_document(payload: DocumentChatRequest):
-    if not settings.gemini_api_key:
-        raise HTTPException(503, "Gemini API is not configured on the backend.")
+    if not settings.openrouter_api_key:
+        raise HTTPException(503, "OpenRouter API is not configured on the backend.")
 
     try:
         document_id = str(UUID(payload.document_id))
@@ -63,15 +63,10 @@ async def chat_about_document(payload: DocumentChatRequest):
         half = max_context_chars // 2
         document_text = document_text[:half] + "\n[মাঝের অংশ সংক্ষিপ্ত করা হয়েছে]\n" + document_text[-half:]
 
-    from langchain_google_genai import ChatGoogleGenerativeAI
+    from app.services.llm_client import get_chat_model
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-    model = ChatGoogleGenerativeAI(
-        model=settings.gemini_model,
-        api_key=settings.gemini_api_key,
-        max_retries=1,
-        timeout=90,
-    )
+    model = get_chat_model(max_retries=2, timeout=90)
 
     system_prompt = """
 তুমি Legal Copilot BD-এর নথি-সহকারী। ব্যবহারকারী বাংলাদেশের একটি আপলোড করা নথি নিয়ে প্রশ্ন করছেন।
@@ -104,9 +99,9 @@ async def chat_about_document(payload: DocumentChatRequest):
         response = await model.ainvoke(messages)
         reply = _content_to_text(response.content)
         if not reply:
-            raise RuntimeError("Gemini returned an empty response")
+            raise RuntimeError("OpenRouter returned an empty response")
     except Exception as exc:
-        raise HTTPException(502, f"Gemini response could not be generated ({type(exc).__name__}).") from exc
+        raise HTTPException(502, f"OpenRouter response could not be generated ({type(exc).__name__}).") from exc
 
     return {
         "reply": reply,

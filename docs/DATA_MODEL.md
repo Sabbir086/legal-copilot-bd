@@ -1,49 +1,50 @@
-# Target Data Model (M1)
+# Data Model — M0/M1 with M2 document intelligence
 
-The deployed schema depends on which migrations have been applied. Migration `001_initial_schema.sql` defines the initial document/analysis/legal-source structures; migration `002_conversational_workspace.sql` adds the M1 conversation, message and attachment tables plus a private Storage bucket. The remaining entities below are target logical models for later milestones, not a claim that they already exist.
+The repo contains sequential migrations `001_initial_schema.sql`, `002_conversational_workspace.sql` and `003_document_intelligence.sql`. Never assume they are applied to a live Supabase project: inspect its migration history first. `001` already defines `public.documents`; M2 extends that table and does not create a competing `documents` table.
 
-## Core entities
+## Existing entities
 
-- **profiles** — authenticated user profile and preferences (language, default jurisdiction); planned for M8.
-- **conversations** — M1 table: device workspace UUID, title, jurisdiction, language and timestamps.
-- **conversation_messages** — M1 table: conversation, role, content, metadata and timestamps.
-- **conversation_attachments** — M1 table: conversation/workspace, private object key, MIME type, size, extraction and classification metadata.
-- **documents / document_pages** — later normalized document entities and page-level extraction.
-- **documents** — normalized representation of an attachment; document type, jurisdiction, parse state and page count.
-- **document_pages** — page number, extracted text, OCR status, extraction confidence and source offsets.
-- **document_facts** — typed facts such as party, date, amount, court, case number, statute reference and evidence locator.
-- **analysis_runs** — workflow ID, agent versions, model ID, status and timestamps.
-- **risk_findings** — distinct risk, category, severity, explanation, recommendation and document evidence locator.
-- **case_files** — parties/roles, court, case number, procedural stage and linked documents.
-- **legal_sources** — law/case/service metadata and jurisdiction.
-- **legal_source_versions** — immutable version, full source text, hash, retrieval time, publication/effective dates and amendment relationships.
-- **legal_chunks** — section/paragraph-level text and stable source locators.
-- **legal_embeddings** — vector embedding, model/version and chunk reference.
-- **citation_candidates** — citations extracted or proposed by agents.
-- **citation_verifications** — exact matched source version, text match, amendment/status/applicability checks, verifier method, reviewer and timestamp.
-- **memoranda** — structured report data, PDF object key, verification coverage and review timestamp.
-- **audit_events** — security-relevant access, file lifecycle, analysis and deletion events.
+- **documents** — M0 table (`id`, optional `user_id`, `file_name`, `file_path`, `file_type`, `jurisdiction`, `status`, `created_at`); extended by M2 with workspace/conversation/attachment linkage, document type/classification, summary/provenance, extraction counts, processing state, prompt-injection flag and errors.
+- **conversations** — M1 table with workspace UUID, title, jurisdiction, language and timestamps.
+- **conversation_messages** — M1 conversation, role, content, metadata and timestamps.
+- **conversation_attachments** — M1 original filename, verified MIME, byte size, private object key, document-type hint, extracted legacy page JSON and legacy parse state. M2 preserves this table and its existing IDs/fields.
 
-## Key relationships
+## M2 normalized entities
+
+- **documents** — one normalized record per M1 attachment. `attachment_id` is unique; `workspace_id` and `conversation_id` retain current scope; `processing_status` tracks the pipeline. Existing M0 standalone documents with no attachment relationship remain valid.
+- **document_pages** — page or source-block records. Stores `source_text` separately from `ocr_text`, plus combined display text, OCR state/engine/languages/confidence, image dimensions, optional private derived artifact key, stable locator JSONB and provenance JSONB. PDF `page_number` is real; DOCX page number stays null and uses paragraph/table/block anchors.
+- **document_segments** — bounded chunks for reading/context only. Stores parent relationship, heading/clause, content, start/end locators, character count and overlap metadata. M2 does not store legal RAG embeddings.
+- **document_facts** — candidate fact field/value, stable evidence locator, exact supporting quote, confidence, extraction method, review flag, uncertainty reason and provenance JSONB. `fact_key` makes retries idempotent.
+- **document_processing_jobs** — durable queue row per document/job type, state, attempts/max attempts, error, timestamps and processing lease. Worker claims are atomic and lock-safe; heartbeat refreshes long OCR jobs.
+
+## Relationships
 
 ```text
-profile 1--N conversations 1--N messages
-conversation 1--N attachments
-attachment 1--1 document 1--N document_pages
-conversation/document 1--N analysis_runs
-analysis_run 1--N risk_findings
-risk_findings N--N legal_chunks (through evidence links)
-legal_source 1--N legal_source_versions 1--N legal_chunks
-legal_chunks 1--1/N legal_embeddings
-analysis_run 1--N citation_candidates 1--N citation_verifications
-analysis_run 1--N memoranda
+conversation 1--N conversation_attachments
+conversation_attachment 1--1 documents (via unique attachment_id)
+documents 1--N document_pages
+documents 1--N document_segments (segments may reference a parent segment)
+documents 1--N document_facts
+documents 1--N document_processing_jobs (unique per job_type)
 ```
 
-## Storage and authorization invariants
+## Storage
 
-- Every conversation, message, attachment, document and analysis record has an owner scope.
-- A user can access only their own records unless explicit shared-case permissions are added.
-- Legal source records are shared read-only only after source review; write access is restricted to ingestion/reviewer roles.
-- Service-role credentials remain server-side and never reach the browser.
-- Deleting a conversation triggers a documented attachment/report retention workflow.
-- Embeddings inherit the same source/document access control as their parent chunk.
+- Original PDF/DOCX/image bytes remain in the existing private `conversation-attachments` bucket under the existing M1 workspace/conversation/attachment key.
+- Derived page render/normalized PNG objects use deterministic keys of the form `{workspace_id}/{conversation_id}/{document_id}/derived/{artifact_type}/{page-or-normalized}.png` in the same private bucket.
+- No bucket is made public. Database records store object keys, not public URLs.
+
+## Scope and M8 migration
+
+M2's `workspace_id` is copied from M1's caller-provided `X-Workspace-ID` device-scope UUID. `user_id` in the reused M0 `documents` row remains null until verified user identity exists. The workspace UUID is not equivalent to `auth.uid()` and must not be described as secure ownership.
+
+M8 conversion plan:
+
+1. Introduce Supabase Auth and require verified JWTs at the API boundary.
+2. Backfill/associate each workspace and child row with verified `user_id` only after user confirmation/ownership proof; do not infer account identity from a UUID.
+3. Add `user_id` to M1/M2 rows and storage ownership metadata.
+4. Create and test per-user RLS policies for conversations, attachments, documents, pages, segments, facts and jobs.
+5. Replace `X-Workspace-ID` authorization with JWT-derived `auth.uid()` scope; maintain only a time-bounded, audited migration compatibility path.
+6. Review retention, deletion, service-role access and audit logging.
+
+RLS is enabled on the new M2 child tables and direct anon/authenticated table grants are revoked; the server uses its service-role/secret key. This is still not a complete user authorization design because M1 has no verified auth identity.

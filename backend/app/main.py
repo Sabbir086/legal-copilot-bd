@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import chat, conversations, documents, legal
+from app.api.routes import chat, conversations, documents, document_analysis, legal
 from app.config.settings import settings
 
 app = FastAPI(
@@ -23,6 +23,7 @@ app.add_middleware(
 )
 app.include_router(conversations.router)
 app.include_router(documents.router)
+app.include_router(document_analysis.router)
 app.include_router(chat.router)
 app.include_router(legal.router)
 

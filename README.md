@@ -38,10 +38,21 @@ cd ~/Documents/legal-copilot-bd/backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
+cp .env.example .env  # only if backend/.env does not already exist
 ```
 
-Edit `backend/.env` and set `GEMINI_API_KEY`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` locally. The default model ID is `gemini-3.8-flash`.
+Set backend-only `GEMINI_API_KEY`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` in `backend/.env`. The default model ID is `gemini-3.8-flash`. Never place these values in the frontend or `NEXT_PUBLIC_*` variables.
+
+For local Bangla/English OCR, install Tesseract and ensure `ben` and `eng` appear in `tesseract --list-langs`:
+
+```bash
+brew install tesseract
+tesseract --list-langs
+```
+
+If language data is missing, install the matching `.traineddata` files from the official Tesseract tessdata repository into the installation's `tessdata` directory. The backend reports missing OCR binary/language packs explicitly.
+
+Start the API:
 
 ```bash
 uvicorn app.main:app --reload --port 8000
@@ -60,16 +71,26 @@ npm run dev
 
 Frontend: http://localhost:3000
 
-## Supabase setup for M1
+## Supabase setup (M0 → M2)
 
-1. Create a Supabase project.
-2. If the initial M0 schema has not already been applied, run `supabase/migrations/001_initial_schema.sql` once. Then run `supabase/migrations/002_conversational_workspace.sql` in the Supabase SQL Editor.
-3. Copy the Project URL and a server-side secret key from Supabase Project Settings → API Keys. Prefer the new `sb_secret_...` key; the legacy `service_role` key is also supported during Supabase’s key transition.
-4. Put these values in `backend/.env` as `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (the environment variable name stays the same even when its value is the new `sb_secret_...` key).
-5. Add the same two keys to Render's backend service Environment settings, then redeploy.
-6. Confirm `https://YOUR-RENDER-SERVICE/health` reports `workspace_persistence: true`. This only confirms the two environment values are present; it is not a live database/storage test.
+Migration sequence is append-only. Check the actual Supabase migration history before running SQL; never rerun a migration that is already applied.
 
-The private bucket `conversation-attachments` is created by migration 002. Do not make it public.
+1. If this is a new database with no M0/M1 schema, apply `supabase/migrations/001_initial_schema.sql`, then `002_conversational_workspace.sql`, then `003_document_intelligence.sql`, each exactly once.
+2. If `001` and `002` are already applied (as in an existing M1 environment), apply **only** `003_document_intelligence.sql`. It extends the existing M0 `documents` table and adds M2 page/segment/fact/job tables; it does not replace M1 attachment tables.
+3. If only some migrations are applied, inspect and reconcile the schema/history before applying anything. Back up first and test against a staging Supabase project.
+4. Keep `conversation-attachments` private. M2 stores original files and derived page/normalized images in this existing private bucket.
+5. Configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` on the Render API and the Render worker only. The existing key variable may hold a current server-side `sb_secret_...` key or legacy `service_role` key.
+6. Verify API and worker logs, then upload a synthetic document and test state, evidence retrieval and retry. `/health` reports only environment-value presence; it does not test the database or worker.
+
+### Render Background Worker
+
+M2 extraction is queued by FastAPI and processed by a durable database-backed worker; do not rely on in-memory FastAPI background tasks. Create a Render Background Worker from the same repository using `backend/Dockerfile.worker` (Docker build context `backend`). The Docker image installs Tesseract and `ben`/`eng` language packs. Use the start command:
+
+```bash
+python -m app.workers.document_worker
+```
+
+Configure the same server-side `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` used by the API, plus the M2 OCR/segment settings from `backend/.env.example`. A one-job local smoke command is `python -m app.workers.document_worker --once` from `backend/`. See `docs/M2_IMPLEMENTATION.md` for Render details and API examples.
 
 ## Configuration
 
@@ -79,7 +100,9 @@ The private bucket `conversation-attachments` is created by migration 002. Do no
 
 ## Known limitations
 
-The project is not yet a complete AI Builders Congress solution. M1 code is implemented, but Supabase must be configured by the project owner before persistence works. OCR for scanned documents, authoritative Bangladesh law corpus, RAG/pgvector, independent citation verification, the full multi-agent workflow, CrPC legal triage, plaintiff/defendant analysis, Bangla PDF font embedding and production security remain pending. M1 uses a device-scoped workspace UUID, not authentication; do not upload confidential case files until M8 authorization and RLS are implemented.
+M2 document-intelligence code is implemented and the backend synthetic unit suite passes, but the owner must still apply migration 003, deploy/configure the Render worker, and complete frontend/live integration checks. OCR currently uses Tesseract and may be inaccurate for handwriting, poor scans, complex layouts or embedded-image-only DOCX files. The document summary is extractive; visual-model analysis is not active. Candidate facts require human review and do not verify law or calculate legal deadlines.
+
+The project is not yet a complete AI Builders Congress solution. M3 authoritative Bangladesh law corpus, source versioning, RAG/pgvector, citation verification, full multi-agent workflow, CrPC triage, plaintiff/defendant analysis, Bangla PDF font embedding and production security remain pending. M1/M2 still use a device-scoped workspace UUID, not authentication; do not upload confidential case files until M8 authorization and RLS are implemented.
 
 ## Documentation
 
@@ -89,7 +112,8 @@ The project is not yet a complete AI Builders Congress solution. M1 code is impl
 - `docs/AGENT_CONTRACTS.md` — agent/evidence contracts.
 - `docs/LEGAL_SOURCES.md` — legal source strategy and CrPC acquisition notes.
 - `docs/SECURITY.md` — security limitations and release blockers.
-- `docs/DEVELOPMENT_STATUS.md` — implemented vs pending status.
+- `docs/DEVELOPMENT_STATUS.md` — implemented vs pending status and test validation.
+- `docs/M2_IMPLEMENTATION.md` — M2 architecture, migration, worker, OCR setup, API examples and handoff.
 
 ## Legal disclaimer
 
