@@ -340,13 +340,20 @@ async def send_message(
 
         model = get_chat_model(max_retries=2, timeout=90)
 
-        # Translate a natural-language incident into compact English search terms,
-        # then retrieve the exact statutory text from Supabase before drafting.
+        # Explicit section references are looked up directly in Supabase first.
+        # Never rewrite "302 dhara ki?" into general keywords before exact lookup.
         retrieval_rows = []
         retrieval_terms = prompt
+        from app.services.penal_code_rag import (
+            PenalCodeRetrievalError,
+            search_sections,
+            extract_section_numbers,
+            format_retrieved_context,
+            classify_query,
+        )
+        explicit_sections = extract_section_numbers(prompt)
         try:
-            from app.services.penal_code_rag import search_sections, extract_section_numbers, format_retrieved_context, classify_query
-            if not extract_section_numbers(prompt):
+            if not explicit_sections:
                 terms_response = await model.ainvoke([
                     SystemMessage(content=(
                         "Convert the user's Bangladesh legal incident or case statement into 4-8 concise English legal search terms. "
@@ -355,13 +362,23 @@ async def send_message(
                     HumanMessage(content=prompt[:6000]),
                 ])
                 retrieval_terms = str(getattr(terms_response, "content", "") or prompt).strip()[:500] or prompt
-            retrieval_rows = search_sections(retrieval_terms, match_count=10)
-        except Exception:
-            logger.warning("Penal Code retrieval failed; answer must disclose missing statutory retrieval", exc_info=True)
-            retrieval_rows = []
+            retrieval_rows = search_sections(prompt if explicit_sections else retrieval_terms, match_count=10)
+        except PenalCodeRetrievalError as exc:
+            logger.exception("Penal Code database is unavailable during retrieval")
+            raise HTTPException(503, (
+                "বাংলাদেশ Penal Code database-এ query করা যাচ্ছে না। Render-এর "
+                "SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY এবং Supabase migration 004 পরীক্ষা করুন। "
+                "Database query সফল না হওয়া পর্যন্ত অনুমানভিত্তিক উত্তর দেওয়া হবে না।"
+            )) from exc
+        except Exception as exc:
+            logger.exception("Unexpected Penal Code retrieval failure")
+            raise HTTPException(503, (
+                "আইন-ধারা database থেকে তথ্য আনা যায়নি। Render Backend logs ও Supabase connection পরীক্ষা করুন।"
+            )) from exc
 
         statutory_context = format_retrieved_context(retrieval_rows) if retrieval_rows else (
-            "Penal Code database retrieval returned no matching rows. Never invent section numbers or punishments."
+            "The database query completed successfully, but no matching Penal Code record exists for the requested section/query. "
+            "Do not claim database connectivity failed. Do not invent section numbers or punishments."
         )
         query_category = classify_query(prompt)
 
@@ -379,7 +396,8 @@ async def send_message(
 - Retrieved database context-এ যে section number সরবরাহ করা হয়েছে, কেবল সেগুলোকেই Penal Code citation হিসেবে ব্যবহার করবে। নিজস্ব স্মৃতি থেকে নতুন section number যোগ করবে না; অন্য আইনের ধারা দরকার হলে সেটি স্পষ্টভাবে database-এর বাইরের তথ্য হিসেবে চিহ্নিত করে যাচাই ছাড়া নিশ্চিত দাবি করবে না।
 - retrieved section text থেকে যা পাওয়া যায় শুধু তাই বলবে; শাস্তি না থাকলে অনুমান করবে না। ধারা প্রযোজ্য হওয়ার সব উপাদান প্রমাণিত ধরে নেবে না।
 - প্রতিটি statutory citation-এর পাশে source PDF page এবং snapshot date 2013-08-26 উল্লেখ করবে। এটি পুরোনো snapshot; বর্তমান সংশোধনী, repeal, commencement বা সর্বশেষ শাস্তি যাচাই না করে বর্তমান আইন বলে দাবি করবে না।
-- retrieved data না থাকলে স্পষ্ট বলবে যে Penal Code database থেকে মিল পাওয়া যায়নি; নিজের স্মৃতি থেকে section number বা punishment বানাবে না।
+- retrieved data না থাকলে স্পষ্ট বলবে যে Penal Code database থেকে মিল পাওয়া যায়নি; নিজের স্মৃতি থেকে section number বা punishment বানাবে না। Database retrieval error হলে সেটিকে "record নেই" বলবে না; backend database error হিসেবে জানাবে।
+- কোনো explicit section number-এর record context-এ থাকলে সেটিই সরাসরি ব্যাখ্যা করবে; একই উত্তরে "database-এ record নেই" বলবে না। ইংরেজি statutory text থাকলে সহজ বাংলায় অর্থ ব্যাখ্যা করবে এবং মূল English wording প্রয়োজন হলে উদ্ধৃত করবে।
 - অভিযোগ বা এক পক্ষের বক্তব্যকে প্রমাণিত সত্য বা আদালতের finding হিসেবে উপস্থাপন করবে না।
 - জরুরি নিরাপত্তা ঝুঁকি, গ্রেপ্তার, নির্ধারিত শুনানি বা deadline-এর সম্ভাবনা থাকলে দ্রুত qualified Bangladesh lawyer বা সংশ্লিষ্ট কর্তৃপক্ষের সহায়তা নিতে বলো।
 - ব্যবহারকারীকে প্রমাণ নষ্ট, মিথ্যা তথ্য দেওয়া, সাক্ষী প্রভাবিত করা বা বেআইনি কাজের নির্দেশ দেবে না।
@@ -387,6 +405,16 @@ async def send_message(
 
 নথির পাঠ্য প্রাথমিক তথ্য; এটি নথির সত্যতা, মালিকানা, কার্যকারিতা বা আইনগত বৈধতার সরকারি যাচাই নয়।
 """.strip()
+        if query_category == "section_lookup":
+            system_prompt += (
+                "\n\nধারা-ভিত্তিক প্রশ্নের উত্তর দেওয়ার নিয়ম: "
+                "(১) প্রথমে retrieved record-এর ধারা নম্বর ও শিরোনাম বলবে; "
+                "(২) section_text সহজ বাংলায় ব্যাখ্যা করবে; "
+                "(৩) punishment_excerpt থাকলে সেটির ভিত্তিতে শাস্তির অংশ ব্যাখ্যা করবে, না থাকলে পূর্ণ section_text দেখে বলবে; "
+                "(৪) PDF page এবং snapshot date উল্লেখ করবে; "
+                "(৫) পুরোনো snapshot হওয়ায় বর্তমান সংশোধনী সরকারি উৎসে যাচাই করার সতর্কতা দেবে। "
+                "ব্যবহারকারী শুধু একটি ধারার অর্থ জানতে চাইলে অপ্রয়োজনীয় মামলা-সংক্রান্ত নিরাপদ পদক্ষেপ যোগ করবে না।"
+            )
 
         context_sections: list[str] = []
         image_blocks: list[dict] = []
