@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.routes import chat, conversations, documents, document_analysis, legal, auth_admin
@@ -14,6 +15,10 @@ app = FastAPI(
         "AI risk findings are document-evidence signals, not verified legal advice."
     ),
 )
+
+# Compress larger JSON responses (chat history, document analysis) to reduce transfer time.
+# This is independent of the Render and Supabase deployment regions.
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
 origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
 

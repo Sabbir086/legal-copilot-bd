@@ -1,36 +1,110 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, FileSearch, Gavel, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  Check,
+  FileSearch,
+  Landmark,
+  MessageSquareText,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+
+const benefits = [
+  "আইন ও নীতিমালা থেকে উৎসভিত্তিক উত্তর",
+  "রুটিন আইনি কাজ ও নথি বিশ্লেষণে সহায়তা",
+  "Conversation history ও ব্যক্তিগত workspace",
+];
 
 export default function LandingPage() {
   return (
     <main className="landing-page">
-      <nav className="landing-nav">
-        <Link href="/" className="landing-brand"><span className="landing-brand-icon"><Gavel size={22} /></span><span><b>Legal Copilot BD</b><small>Bangladesh Legal Assistant</small></span></Link>
-        <div className="landing-links"><Link href="/signin">Sign in</Link><Link className="landing-nav-cta" href="/dashboard">Dashboard <ArrowRight size={15} /></Link></div>
-      </nav>
+      <header className="landing-nav">
+        <Link href="/" className="landing-brand" aria-label="MyLegal AI home">
+          <span className="landing-brand-icon"><Landmark size={25} strokeWidth={2.1} /></span>
+          <span>
+            <b>MyLegal AI</b>
+            <small>Bangladesh Legal Assistant</small>
+          </span>
+        </Link>
+
+        <nav className="landing-links" aria-label="Main navigation">
+          <Link href="/">Home</Link>
+          <a href="#features">Features</a>
+          <a href="#how-it-works">How It Works</a>
+          <a href="#about">About</a>
+        </nav>
+
+        <Link className="landing-nav-cta" href="/signin">Login <ArrowRight size={16} /></Link>
+      </header>
+
       <section className="landing-hero">
         <div className="landing-copy">
-          <span className="landing-kicker"><Sparkles size={14} /> AI-powered legal research workspace</span>
-          <h1>বাংলাদেশের আইন বুঝুন। <span>ঘটনা থেকে সম্ভাব্য ধারা খুঁজুন।</span></h1>
-          <p>নিজের ভাষায় ঘটনা বা মামলার বয়ান লিখুন। Penal Code-এর সংরক্ষিত ধারার পাঠ্য থেকে সম্ভাব্য প্রাসঙ্গিক ধারা, আইনগত উপাদান এবং PDF-এ থাকা শাস্তির তথ্য খুঁজে পেতে সহায়তা নিন।</p>
-          <div className="landing-actions"><Link href="/signin" className="landing-primary">চ্যাট শুরু করুন <ArrowRight size={17} /></Link><Link href="/signup" className="landing-secondary">নতুন অ্যাকাউন্ট তৈরি</Link></div>
-          <div className="landing-trust"><ShieldCheck size={16} /> ব্যক্তিগত অ্যাকাউন্ট · নিরাপদ সেশন · conversation history</div>
+          <span className="landing-kicker"><Sparkles size={15} /> AI Assistant for Bangladesh Legal Services</span>
+          <h1>বাংলাদেশের আইন বুঝুন। <span>পরবর্তী পদক্ষেপ জানুন।</span></h1>
+          <p>
+            আইনি প্রশ্ন, ঘটনা বা নথি নিজের ভাষায় তুলে ধরুন। MyLegal AI আপনাকে
+            প্রাসঙ্গিক আইন খুঁজতে, নথির তথ্য বুঝতে এবং সম্ভাব্য পরবর্তী পদক্ষেপ
+            সাজাতে সহায়তা করবে।
+          </p>
+
+          <ul className="landing-benefits">
+            {benefits.map((benefit) => (
+              <li key={benefit}><Check size={19} />{benefit}</li>
+            ))}
+          </ul>
+
+          <div className="landing-actions">
+            <Link href="/signup" className="landing-primary">Get Started <ArrowRight size={18} /></Link>
+            <a href="#features" className="landing-secondary">Learn More</a>
+          </div>
+          <div className="landing-trust"><ShieldCheck size={16} /> ব্যক্তিগত workspace · নিরাপদ sign-in · উৎসভিত্তিক সহায়তা</div>
         </div>
-        <div className="landing-visual">
-          <div className="landing-orbit orbit-one" /><div className="landing-orbit orbit-two" />
-          <div className="landing-visual-card">
-            <div className="visual-card-top"><span className="visual-mark"><Gavel size={19} /></span><span>Legal Copilot BD</span><span className="visual-status">Ready</span></div>
-            <div className="visual-user-msg">একজন ব্যক্তি মিথ্যা পরিচয়ে টাকা নিয়েছে। সম্ভাব্য কোন ধারা হতে পারে?</div>
-            <div className="visual-ai-msg"><div className="visual-ai-head"><Sparkles size={15} /> সম্ভাব্য আইনি বিশ্লেষণ</div><b>প্রাথমিক যাচাই দরকার</b><p>ঘটনার উপাদান ও প্রমাণ মিলিয়ে প্রাসঙ্গিক ধারা খুঁজে দেখা হবে।</p><div className="visual-tags"><span>ধারা অনুসন্ধান</span><span>উৎস-পাঠ্য</span><span>শাস্তির তথ্য</span></div></div>
+
+        <div className="landing-hero-art" aria-label="Bangladesh public institution illustration">
+          <div className="landing-preview-card">
+            <div className="landing-preview-heading"><span><MessageSquareText size={16} /></span><b>MyLegal AI Assistant</b><i>Online</i></div>
+            <div className="landing-preview-user">একটি আইনি বিষয়ে জানতে চাই। কীভাবে শুরু করব?</div>
+            <div className="landing-preview-ai"><span><Sparkles size={14} /> AI Assistant</span><p>ঘটনার বিবরণ লিখুন। প্রাসঙ্গিক আইন ও প্রয়োজনীয় তথ্য ধাপে ধাপে যাচাই করতে সাহায্য করব।</p></div>
           </div>
         </div>
       </section>
-      <section className="landing-features">
-        <article><span><BookOpen size={20} /></span><h3>আইনের ধারাভিত্তিক অনুসন্ধান</h3><p>Penal Code-এর ধারা ও মূল পাঠ্য থেকে প্রাসঙ্গিক তথ্য উদ্ধার।</p></article>
-        <article><span><FileSearch size={20} /></span><h3>ঘটনা ও মামলার বয়ান বিশ্লেষণ</h3><p>ঘটনার facts, সম্ভাব্য উপাদান এবং অনুপস্থিত তথ্য আলাদা করে দেখা।</p></article>
-        <article><span><ShieldCheck size={20} /></span><h3>ব্যক্তিগত workspace</h3><p>প্রতিটি account-এর নিজস্ব conversation এবং document workspace।</p></article>
+
+      <section className="landing-features" id="features">
+        <article>
+          <span><BookOpen size={21} /></span>
+          <h3>আইনভিত্তিক অনুসন্ধান</h3>
+          <p>প্রাসঙ্গিক আইন, ধারা ও নীতিমালার তথ্য খুঁজে বুঝতে সহায়তা।</p>
+        </article>
+        <article>
+          <span><FileSearch size={21} /></span>
+          <h3>নথি বিশ্লেষণ</h3>
+          <p>PDF ও DOCX নথির তথ্য, গুরুত্বপূর্ণ অংশ এবং সম্ভাব্য ঝুঁকি পর্যালোচনা।</p>
+        </article>
+        <article>
+          <span><ShieldCheck size={21} /></span>
+          <h3>ব্যক্তিগত workspace</h3>
+          <p>নিজস্ব conversation history ও সংযুক্ত নথি এক জায়গায় সংরক্ষণ।</p>
+        </article>
       </section>
-      <footer className="landing-footer">প্রাথমিক আইনি তথ্য সহায়তা মাত্র; আইনজীবীর পরামর্শ বা সর্বশেষ সরকারি আইন যাচাইয়ের বিকল্প নয়।</footer>
+
+      <section className="landing-how" id="how-it-works">
+        <div className="landing-section-heading">
+          <span>HOW IT WORKS</span>
+          <h2>সহজ তিনটি ধাপে শুরু করুন</h2>
+        </div>
+        <div className="landing-steps">
+          <article><b>01</b><h3>অ্যাকাউন্টে প্রবেশ করুন</h3><p>আপনার account তৈরি করুন অথবা আগে থেকে থাকা account দিয়ে sign in করুন।</p></article>
+          <article><b>02</b><h3>প্রশ্ন বা নথি যুক্ত করুন</h3><p>নিজের ভাষায় প্রশ্ন লিখুন, প্রয়োজন হলে PDF বা DOCX যুক্ত করুন।</p></article>
+          <article><b>03</b><h3>উত্তর ও বিশ্লেষণ দেখুন</h3><p>AI-এর প্রাথমিক তথ্য, বিশ্লেষণ এবং উৎস যাচাইয়ের প্রয়োজনীয়তা বুঝে নিন।</p></article>
+        </div>
+      </section>
+
+      <section className="landing-about" id="about">
+        <div><span>ABOUT MYLEGAL AI</span><h2>আইনি তথ্য বুঝতে সহায়ক একটি ডিজিটাল workspace</h2></div>
+        <p>MyLegal AI প্রাথমিক আইনি তথ্য ও document assistance দেয়। এর উত্তর আইনজীবীর পরামর্শ, সরকারি রেকর্ড বা সর্বশেষ আইন যাচাইয়ের বিকল্প নয়। গুরুত্বপূর্ণ সিদ্ধান্তের আগে মূল আইন ও যোগ্য আইনজীবীর পরামর্শ যাচাই করুন।</p>
+      </section>
+      <footer className="landing-footer">© {new Date().getFullYear()} MyLegal AI · Bangladesh Legal Assistant</footer>
     </main>
   );
 }
